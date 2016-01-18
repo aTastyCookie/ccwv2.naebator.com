@@ -1,0 +1,5 @@
+db:
+    user: root
+    password: test
+    host: localhost
+    dsn: 'dbi:mysql:dbname=ccwv2'
