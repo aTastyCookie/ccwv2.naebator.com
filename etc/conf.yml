@@ -3,3 +3,5 @@ db:
     password: test
     host: localhost
     dsn: 'dbi:mysql:dbname=ccwv2'
+
+application: com.play2money.richsquirrel

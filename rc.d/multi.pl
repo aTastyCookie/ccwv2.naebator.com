@@ -24,6 +24,10 @@ my $device_obj = new Device( { dbh => $dbh, conf => $config } );
 
 ### с этого момента начнется вся карулесь с while и sleep
 
-# get list available devices
-my $list = $device_obj->list();
-###################
+while(1){
+    my $list = $device_obj->list();
+
+    $device_obj->start($list);
+
+    sleep 3;
+}
