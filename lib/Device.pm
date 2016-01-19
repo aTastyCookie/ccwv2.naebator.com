@@ -187,7 +187,6 @@ sub _sniff_log {
                 warn $message. "device_id: $device->{device}";
                 $self->_execute_default_application( $device );
                 sleep 5;
-                `adb -s $device->{device} shell input tap 1145 2000`;
             }
         }
     }
@@ -209,11 +208,11 @@ sub _sniff_log {
                 ## Парсим с этого момента ##
                 if ( $_ =~ /(Ad finished loading|Rewarded video ad placement|Open Video)/gs ){
                     my $message = "Start $attempts - Touch red bird on $device->{device}";
+                    `adb -s $device->{device} shell input tap 1145 2000`;
                     $self->_log_event($device, $message);
                     warn $message." device_id: $device->{device}";
                     $self->_execute_default_application( $device );
                     sleep 5;
-                    `adb -s $device->{device} shell input tap 1145 2000`;
                     last;
                 }
             }
