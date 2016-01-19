@@ -147,12 +147,12 @@ sub _get_adb_devices {
 sub start {
     my ( $self, $device ) = @_;
 
-    $self->_set_device_work_status($device, 1);
+    #$self->_set_device_work_status($device, 1);
     my $log_file = $self->_create_log_file($device);
     $self->_start_logging({ device => $device, log_file => $log_file });
     $self->_execute_default_application( $device );
     $self->_sniff_log($log_file, $device);
-    $self->_set_device_work_status($device, 0);
+    #$self->_set_device_work_status($device, 0);
 }
 
 sub _sniff_log {

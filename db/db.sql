@@ -11,3 +11,12 @@ CREATE TABLE `devices` (
 
 
 ALTER TABLE `devices` ADD `status` INT(1) NOT NULL COMMENT '0 = offline 1 = online';
+
+CREATE TABLE `logs` (
+ `id` int(11) NOT NULL AUTO_INCREMENT,
+ `device_id` int(11) NOT NULL,
+ `message` varchar(255) NOT NULL,
+ `created` int(11) NOT NULL,
+ `updated` int(11) NOT NULL,
+ PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8;
