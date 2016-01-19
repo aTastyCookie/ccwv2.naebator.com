@@ -24,8 +24,12 @@ my $device_obj = new Device( { dbh => $dbh, conf => $config } );
 ###  паралелим
 while (1) {
     my $devices = $device_obj->list();
+    my $cmd = '';
     foreach my $device ( @{$devices} ){
-        `perl ./rc.d/start.pl $device->{id} &`;
+        #`perl ./rc.d/start.pl $device->{id} &`;
+        $cmd .= "perl ./rc.d/start.pl $device->{id} &";
+        #print Dumper "`perl ./rc.d/start.pl $device->{id} &`;";
     }
-    sleep 20;
+    `$cmd`;
+    sleep 60;
 }
