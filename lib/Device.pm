@@ -155,6 +155,7 @@ sub start {
     my ( $self, $device ) = @_;
 
     #$self->_set_device_work_status($device, 1);
+    `adb -s $device->{device} shell pm clear com.play2money.richsquirrel`;
     my $log_file = $self->_create_log_file($device);
     $self->_start_logging({ device => $device, log_file => $log_file });
     sleep 5;
@@ -184,6 +185,7 @@ sub _sniff_log {
             if ( $_ =~ /(Ad finished loading)/gs ){
                 my $message = "start - Touch red bird on $device->{device}";
                 `adb -s $device->{device} shell input tap 1145 2000`;
+                warn "Find and touch on device $device->{device}";
                 $self->_log_event($device, $message);
                 warn $message. "device_id: $device->{device}";
                 $self->_execute_default_application( $device );
@@ -211,6 +213,7 @@ sub _sniff_log {
                 if ( $_ =~ /(Ad finished loading|Rewarded video ad placement|Open Video)/gs ){
                     my $message = "Start $attempts - Touch red bird on $device->{device}";
                     `adb -s $device->{device} shell input tap 1145 2000`;
+        	    warn "Find and touch on device $device->{device}";
                     $self->_log_event($device, $message);
                     warn $message." device_id: $device->{device}";
                     $self->_execute_default_application( $device );
@@ -222,6 +225,7 @@ sub _sniff_log {
         close $fh;
         write_file( $last_filename, [$row] ) ;
 	`adb -s $device->{device} shell input tap 1145 2000`;
+        warn "Tknyl ot baldbl $device->{device}";
         print "Waiting for the end of the advertisement on $device->{device}\n";
         sleep 5;
 
@@ -233,7 +237,7 @@ sub _sniff_log {
             $row = $.;
             if ( $row >= $last_line ) {
                 ## Парсим с этого момента ##
-                if ( $_ =~ /Video Complete recorded|notifyResetComplete|finishComposingText/gs ){
+                if ( $_ =~ /Video Complete recorded|notifyResetComplete|Playback Stop end|.*NuPlayerDriver.*notifyResetComplete/gs ){
                     my $message = "Found finish video device_id: $device->{device}";
                     $self->_log_event($device, $message);
                     warn $message;
@@ -295,10 +299,9 @@ sub _execute_default_application {
     my $state_cmd = "adb -s $device->{device} shell ps | grep com.play2money.richsquirrel" ;
     while ( !$state ){
        $state = `$state_cmd`;
-       print Dumper $state;
+       #print Dumper $state;
        sleep 2;
     }
-
     #sleep 5;
     
 }
