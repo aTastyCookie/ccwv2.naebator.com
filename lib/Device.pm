@@ -13,6 +13,13 @@ sub new {
     return bless( $params , $package);
 }
 
+sub _clear_log {
+    my ( $self, $log_file ) = @_;
+
+    open my $fh ,">", $log_file;
+    close $fh;
+}
+
 sub list {
     my ( $self ) = @_;
 
@@ -183,7 +190,7 @@ sub _sniff_log {
     
     my $attempts = 10;
     my $count_videos = 0;
-    while ( $attempts != 0 ) {
+    while ( $attempts >= 0 ) {
         warn "Attempts $attempts";
         sleep 2;
 
@@ -222,11 +229,13 @@ sub _sniff_log {
                     warn $message;
                     warn $_;
                     sleep 2;
+                    $self->_clear_log($log_file);
+                    write_file( $last_filename, [0] ) ;
                     `adb -s $device->{device} shell input keyevent 4`;
                     $message = "Goto main screen";
                     $self->_log_event($device, $message);
                     warn $message;
-                    $count_videos++;
+                    $count_video++;
                 }
             }
         }
@@ -273,17 +282,17 @@ sub _start_logging {
     my ( $self, $params ) = @_;
 
     #проверим на то что работает ли уже логгер на девайсе
-    unless ( `adb -s $params->{device}{device} shell ps | grep 'logcat -v threadtime'` ) {
+    #unless ( `adb -s $params->{device}{device} shell ps | grep 'logcat -v threadtime'` ) {
         # если нет то запустим
         `adb -s $params->{device}{device} logcat -v threadtime > $params->{log_file} &`;
-    }
+    #}
 }
 
 sub _create_log_file {
     my ( $self, $device ) = @_;
     
     my $template = $device->{device}.'-'.'%d-%m'; #'ZX1G427Z4M-18-01'
-    my $log_file = getcwd.'/logs/'.time2str($template, time);;
+    my $log_file = getcwd.'/logs/'.time2str($template, time);
 
     unless ( -e $log_file ){
         touch( $log_file );

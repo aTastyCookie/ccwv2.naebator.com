@@ -25,11 +25,17 @@ my $device_obj = new Device( { dbh => $dbh, conf => $config } );
 while (1) {
     my $devices = $device_obj->list();
     my $cmd = '';
+
     foreach my $device ( @{$devices} ){
-        #`perl ./rc.d/start.pl $device->{id} &`;
-        $cmd .= "perl ./rc.d/start.pl $device->{id} &";
-        #print Dumper "`perl ./rc.d/start.pl $device->{id} &`;";
+        my $proc = `ps aux | grep perl | grep 'start.pl $device->{id}'`;
+
+        unless ( $proc =~ /rc.d/gs ){
+	    warn 'Start device '.$device->{device};
+            $cmd .= "perl ./rc.d/start.pl $device->{id} &";
+        } else {
+	    warn 'Device '.$device->{device}.' work';
+	}
     }
     `$cmd`;
-    sleep 60;
+    sleep 10;
 }
