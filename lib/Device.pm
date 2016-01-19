@@ -173,6 +173,8 @@ sub _sniff_log {
     }
     open my $fh, '<', $log_file or die "$log_file: $!";
     my $row;
+    $self->_clear_log( $log_file );
+    write_file( $last_filename, [0] ) ;
     while( <$fh> ) {
         $row = $.;
         if ( $row >= $last_line ) {
@@ -247,9 +249,15 @@ sub _sniff_log {
         if ( $attempts == 0 && $count_videos == 0 ) {
             #ребутнется девайс надо слепануться на секунд 40
             `adb -s $device->{device} shell am startservice -n ru.gekos.naebator/.backend.changeDevice`;
-            warn $device->{device}.' sleep please wait 120 seconds';
-            sleep 120;
-            `adb -s $device->{device} shell input touchscreen swipe 530 1050 530 100`;
+            warn $device->{device}.' reboot wait loading';
+            my $load = 0;
+            my $load_status = 0;
+            sleep 15;
+            while ( $load != 1 ){
+                $load_status = `adb -s $device->{device} shell getprop sys.boot_completed | tr -d '\r'`;
+                $load = 1 if $load_status ne "";
+                sleep 1;
+            }
         }
     }
 }
