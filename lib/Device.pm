@@ -157,6 +157,7 @@ sub start {
     #$self->_set_device_work_status($device, 1);
     my $log_file = $self->_create_log_file($device);
     $self->_start_logging({ device => $device, log_file => $log_file });
+    sleep 5;
     $self->_execute_default_application( $device );
     $self->_sniff_log($log_file, $device);
     #$self->_set_device_work_status($device, 0);
@@ -198,6 +199,7 @@ sub _sniff_log {
     while ( $attempts >= 0 ) {
         warn "Attempts $attempts device_id: $device->{device}";
         sleep 2;
+        $self->_execute_default_application( $device );
 
         $last_line = read_file($last_filename);
         open my $fh, '<', $log_file or die "$log_file: $!";
@@ -289,6 +291,15 @@ sub _execute_default_application {
 
     my $app = $self->{conf}{application};
     `adb -s $device->{device} shell monkey -p $app -c android.intent.category.LAUNCHER 1`;
+    my $state;
+    my $state_cmd = "adb -s $device->{device} shell ps | grep com.play2money.richsquirrel" ;
+    while ( !$state ){
+       $state = `$state_cmd`;
+       print Dumper $state;
+       sleep 2;
+    }
+
+    #sleep 5;
     
 }
 
@@ -298,6 +309,7 @@ sub _start_logging {
     #проверим на то что работает ли уже логгер на девайсе
     #unless ( `adb -s $params->{device}{device} shell ps | grep 'logcat -v threadtime'` ) {
         # если нет то запустим
+	`adb -s $params->{device}{device} logcat -c`;
         `adb -s $params->{device}{device} logcat -v threadtime > $params->{log_file} &`;
     #}
 }
