@@ -1,7 +1,7 @@
 db:
-    user: root
-    password: test
-    host: localhost
-    dsn: 'dbi:mysql:dbname=ccwv2'
+    user: ccwperl
+    password: REPAZPuPNVHLSnKV
+    host: stat.naebator.com
+    dsn: 'dbi:mysql:dbname=ccwperl:stat.naebator.com'
 
 application: com.play2money.richsquirrel

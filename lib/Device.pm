@@ -182,6 +182,7 @@ sub _sniff_log {
             ## Парсим с этого момента ##
             if ( $_ =~ /(Ad finished loading)/gs ){
                 my $message = "start - Touch red bird on $device->{device}";
+                `adb -s $device->{device} shell input tap 1145 2000`;
                 $self->_log_event($device, $message);
                 warn $message. "device_id: $device->{device}";
                 $self->_execute_default_application( $device );
@@ -219,6 +220,7 @@ sub _sniff_log {
         }
         close $fh;
         write_file( $last_filename, [$row] ) ;
+	`adb -s $device->{device} shell input tap 1145 2000`;
         print "Waiting for the end of the advertisement on $device->{device}\n";
         sleep 5;
 
