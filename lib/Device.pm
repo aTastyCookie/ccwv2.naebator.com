@@ -171,6 +171,7 @@ sub _sniff_log {
     unless ( $last_line ) {
         $last_line = 0;
     }
+    $self->_execute_default_application( $device );
     open my $fh, '<', $log_file or die "$log_file: $!";
     my $row;
     $self->_clear_log( $log_file );
@@ -182,7 +183,9 @@ sub _sniff_log {
             if ( $_ =~ /(Ad finished loading)/gs ){
                 my $message = "start - Touch red bird on $device->{device}";
                 $self->_log_event($device, $message);
-                warn $message;
+                warn $message. "device_id: $device->{device}";
+                $self->_execute_default_application( $device );
+                sleep 5;
                 `adb -s $device->{device} shell input tap 1145 2000`;
             }
         }
@@ -193,7 +196,7 @@ sub _sniff_log {
     my $attempts = 10;
     my $count_videos = 0;
     while ( $attempts >= 0 ) {
-        warn "Attempts $attempts";
+        warn "Attempts $attempts device_id: $device->{device}";
         sleep 2;
 
         $last_line = read_file($last_filename);
@@ -206,7 +209,9 @@ sub _sniff_log {
                 if ( $_ =~ /(Ad finished loading|Rewarded video ad placement|Open Video)/gs ){
                     my $message = "Start $attempts - Touch red bird on $device->{device}";
                     $self->_log_event($device, $message);
-                    warn $message;
+                    warn $message." device_id: $device->{device}";
+                    $self->_execute_default_application( $device );
+                    sleep 5;
                     `adb -s $device->{device} shell input tap 1145 2000`;
                     last;
                 }
@@ -226,7 +231,7 @@ sub _sniff_log {
             if ( $row >= $last_line ) {
                 ## Парсим с этого момента ##
                 if ( $_ =~ /Video Complete recorded|notifyResetComplete|finishComposingText/gs ){
-                    my $message = "Found finish video";
+                    my $message = "Found finish video device_id: $device->{device}";
                     $self->_log_event($device, $message);
                     warn $message;
                     warn $_;
