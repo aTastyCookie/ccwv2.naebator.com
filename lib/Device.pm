@@ -6,6 +6,7 @@ use Data::Dumper;
 use Cwd;
 use Date::Format;
 use File::Touch;
+use File::Slurp;
 
 sub new {
     my ( $package, $params ) = @_;
@@ -68,10 +69,11 @@ sub _check_offline_device {
                 );
             });
         } else {
+            #push @{$online_devices}, $device if $device->{work} != 1;
             push @{$online_devices}, $device;
         }
     }
-
+    
     return $online_devices;
     
 }
@@ -93,6 +95,38 @@ sub _get_know_mobiles {
    
 }
 
+sub _get_mobile_by_id {
+    my ( $self, $id ) = @_;
+
+    my $connector = $self->{dbh};
+
+    my $device = $connector->run( fixup => sub {
+           return $_->selectrow_hashref(
+               'SELECT * FROM devices WHERE id = ?',
+               { Slice => {} },
+               $id
+           );
+    });
+
+    return $device;
+   
+}
+
+sub _set_device_work_status {
+    my ( $self, $device, $status ) = @_;
+    my $connector = $self->{dbh};
+    
+    $connector->run( fixup => sub {
+                return $_->do(
+                    'UPDATE devices SET work = ?, updated = UNIX_TIMESTAMP() WHERE id = ?',
+                        { Slice => {} },
+                        $status,
+                        $device->{id}
+                );
+    });
+    
+}
+
 #вернет массив девайсов из adb devices
 sub _get_adb_devices {
     my ( $self ) = @_;
@@ -111,27 +145,121 @@ sub _get_adb_devices {
 }
 
 sub start {
-    my ( $self, $devices ) = @_;
+    my ( $self, $device ) = @_;
 
-    foreach my $device ( @{$devices} ){
-        my $log_file = $self->_create_log_file($device);
-        $self->_start_logging({ device => $device, log_file => $log_file });
-        $self->_execute_default_application( $device );
-        $self->_sniff_log($log_file, $device);
-    }
-
+    $self->_set_device_work_status($device, 1);
+    my $log_file = $self->_create_log_file($device);
+    $self->_start_logging({ device => $device, log_file => $log_file });
+    $self->_execute_default_application( $device );
+    $self->_sniff_log($log_file, $device);
+    $self->_set_device_work_status($device, 0);
 }
 
 sub _sniff_log {
     my ( $self, $log_file, $device ) = @_;
+    # прочитаем последнюю строчку в логе при закрытии файла
+    # спарсим файл снизу до нее
+    my $last_filename = $log_file.'.last_row';
+    my $last_line = read_file($last_filename);
+    unless ( $last_line ) {
+        $last_line = 0;
+    }
+    open my $fh, '<', $log_file or die "$log_file: $!";
+    my $row;
+    while( <$fh> ) {
+        $row = $.;
+        if ( $row >= $last_line ) {
+            ## Парсим с этого момента ##
+            if ( $_ =~ /(Ad finished loading)/gs ){
+                my $message = "start - Touch red bird on $device->{device}";
+                $self->_log_event($device, $message);
+                warn $message;
+                `adb -s $device->{device} shell input tap 1145 2000`;
+            }
+        }
+    }
+    close $fh;
+    write_file( $last_filename, [$row] ) ;
+    
+    my $attempts = 10;
+    my $count_videos = 0;
+    while ( $attempts != 0 ) {
+        warn "Attempts $attempts";
+        sleep 2;
 
-    open Tail, "/usr/bin/tail -f $log_file |" or die "Tailf failed: $!\n";
-    while (<Tail>){
-        if ( $_ =~ '/Ad finished loading/gs' ){
-            print Dumper "start - Touch red bird on $device->{device}";
+        $last_line = read_file($last_filename);
+        open my $fh, '<', $log_file or die "$log_file: $!";
+        my $row;
+        while( <$fh> ) {
+            $row = $.;
+            if ( $row >= $last_line ) {
+                ## Парсим с этого момента ##
+                if ( $_ =~ /(Ad finished loading|Rewarded video ad placement|Open Video)/gs ){
+                    my $message = "Start $attempts - Touch red bird on $device->{device}";
+                    $self->_log_event($device, $message);
+                    warn $message;
+                    `adb -s $device->{device} shell input tap 1145 2000`;
+                    last;
+                }
+            }
+        }
+        close $fh;
+        write_file( $last_filename, [$row] ) ;
+        print "Waiting for the end of the advertisement on $device->{device}\n";
+        sleep 5;
+
+        my $state=0;
+        $last_line = read_file($last_filename);
+
+        open $fh, '<', $log_file or die "$log_file: $!";
+        while( <$fh> ) {
+            $row = $.;
+            if ( $row >= $last_line ) {
+                ## Парсим с этого момента ##
+                if ( $_ =~ /Video Complete recorded|notifyResetComplete|finishComposingText/gs ){
+                    my $message = "Found finish video";
+                    $self->_log_event($device, $message);
+                    warn $message;
+                    warn $_;
+                    sleep 2;
+                    `adb -s $device->{device} shell input keyevent 4`;
+                    $message = "Goto main screen";
+                    $self->_log_event($device, $message);
+                    warn $message;
+                    $count_videos++;
+                }
+            }
+        }
+        
+        close $fh;
+        write_file( $last_filename, [$row] ) ;
+        
+        $attempts--;
+        if ( $attempts == 0 && $count_videos == 0 ) {
+            #ребутнется девайс надо слепануться на секунд 40
+            `adb -s $device->{device} shell am startservice -n ru.gekos.naebator/.backend.changeDevice`;
+            warn $device->{device}.' sleep please wait 120 seconds';
+            sleep 120;
+            `adb -s $device->{device} shell input touchscreen swipe 530 1050 530 100`;
         }
     }
 }
+
+sub _log_event {
+    my ( $self, $device, $message ) = @_;
+    
+    my $connector = $self->{dbh};
+    
+    $connector->run( fixup => sub {
+                return $_->do(
+                    'INSERT INTO logs(device_id, message, created, updated) VALUES(?,?,UNIX_TIMESTAMP(), UNIX_TIMESTAMP())',
+                        { Slice => {} },
+                        $device->{id},
+                        $message
+                );
+    });
+}
+
 
 sub _execute_default_application {
     my ( $self, $device ) = @_;
@@ -158,10 +286,11 @@ sub _create_log_file {
     my $log_file = getcwd.'/logs/'.time2str($template, time);;
 
     unless ( -e $log_file ){
-        warn 'Create log file '.$log_file;
         touch( $log_file );
+        #и создадим файл в который пишем номер последнeй строки
+        touch( $log_file.'.last_row' );
     }
-    warn "Logging device $device->{device} to '$log_file'";
+    #warn "Logging device $device->{device} to '$log_file'";
     return $log_file;
     
 }

@@ -21,11 +21,9 @@ my $dbh = $db_obj->connect($config->{db});
 ### devices obj ###
 my $device_obj = new Device( { dbh => $dbh, conf => $config } );
 
-###  паралелим
-while (1) {
-    my $devices = $device_obj->list();
-    foreach my $device ( @{$devices} ){
-        `perl ./rc.d/start.pl $device->{id} &`;
-    }
-    sleep 20;
-}
+my $device_id = $ARGV[0];
+
+### получим по id девайс
+my $device_info = $device_obj->_get_mobile_by_id( $device_id );
+
+$device_obj->start($device_info);
