@@ -235,7 +235,7 @@ sub _sniff_log {
                     $message = "Goto main screen";
                     $self->_log_event($device, $message);
                     warn $message;
-                    $count_video++;
+                    $count_videos++;
                 }
             }
         }
