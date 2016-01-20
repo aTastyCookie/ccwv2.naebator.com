@@ -223,7 +223,7 @@ sub _sniff_log {
                     $self->_log_event($device, $message);
                     warn $message." device_id: $device->{device}";
                     $back = 0;
-                    sleep 20;
+                    sleep 15;
                     last;
                 }
             }
@@ -266,11 +266,16 @@ sub _sniff_log {
         $attempts--;
         if ( $attempts == 0 && $count_videos == 0 ) {
             #ребутнется девайс надо слепануться на секунд 40
-            `adb -s $device->{device} shell am startservice -n ru.gekos.naebator/.backend.changeDevice`;
-            $self->_kill_start_process( $device );
-            warn $device->{device}.' reboot wait loading';
+            $self->_reboot_device($device);
         }
     }
+    $self->_kill_start_process( $device );
+}
+
+sub _reboot_device {
+    my ( $self, $device ) = @_;
+    `adb -s $device->{device} shell am startservice -n ru.gekos.naebator/.backend.changeDevice`;
+    warn $device->{device}.' reboot wait loading';
 }
 
 sub _kill_start_process {
