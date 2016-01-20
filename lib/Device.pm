@@ -188,7 +188,6 @@ sub _sniff_log {
                 warn "Find and touch on device $device->{device}";
                 $self->_log_event($device, $message);
                 warn $message. "device_id: $device->{device}";
-                $self->_execute_default_application( $device );
                 sleep 5;
             }
         }
@@ -198,34 +197,40 @@ sub _sniff_log {
     
     my $attempts = 10;
     my $count_videos = 0;
-    while ( $attempts >= 0 ) {
+    while ( $attempts >= 0 ) {       
+        my $check_run = `adb -s $device->{device} shell ps | grep com.play2money.richsquirrel`;
+        unless ( $check_run ){
+            $self->_start_logging({ device => $device, log_file => $log_file });
+            $self->_execute_default_application( $device );
+        }
         warn "Attempts $attempts device_id: $device->{device}";
         sleep 2;
-        $self->_execute_default_application( $device );
+
 
         $last_line = read_file($last_filename);
         open my $fh, '<', $log_file or die "$log_file: $!";
         my $row;
+        my $back = 0;
         while( <$fh> ) {
             $row = $.;
+            $last_line = 0 if $last_line eq '';
             if ( $row >= $last_line ) {
                 ## Парсим с этого момента ##
-                if ( $_ =~ /(Ad finished loading|Rewarded video ad placement|Open Video)/gs ){
+                if ( $_ =~ /(Ad finished loading|Rewarded video ad placement|Open Video|Video download Success)/gs ){
                     my $message = "Start $attempts - Touch red bird on $device->{device}";
                     `adb -s $device->{device} shell input tap 1145 2000`;
-        	    warn "Find and touch on device $device->{device}";
+                    warn "Find and touch on device $device->{device}";
                     $self->_log_event($device, $message);
                     warn $message." device_id: $device->{device}";
-                    $self->_execute_default_application( $device );
-                    sleep 5;
+                    $back = 0;
+                    sleep 20;
                     last;
                 }
             }
         }
         close $fh;
         write_file( $last_filename, [$row] ) ;
-	`adb -s $device->{device} shell input tap 1145 2000`;
-        warn "Tknyl ot baldbl $device->{device}";
+        #`adb -s $device->{device} shell input tap 1145 2000`;
         print "Waiting for the end of the advertisement on $device->{device}\n";
         sleep 5;
 
@@ -237,7 +242,8 @@ sub _sniff_log {
             $row = $.;
             if ( $row >= $last_line ) {
                 ## Парсим с этого момента ##
-                if ( $_ =~ /Video Complete recorded|notifyResetComplete|Playback Stop end|.*NuPlayerDriver.*notifyResetComplete/gs ){
+                if ( $_ =~ /Video Complete recorded|notifyResetComplete|Playback Stop end|NuPlayerDriver/gs && $back == 0 ){
+                    $back = 1;
                     my $message = "Found finish video device_id: $device->{device}";
                     $self->_log_event($device, $message);
                     warn $message;
@@ -261,17 +267,30 @@ sub _sniff_log {
         if ( $attempts == 0 && $count_videos == 0 ) {
             #ребутнется девайс надо слепануться на секунд 40
             `adb -s $device->{device} shell am startservice -n ru.gekos.naebator/.backend.changeDevice`;
+            $self->_kill_start_process( $device );
             warn $device->{device}.' reboot wait loading';
-            my $load = 0;
-            my $load_status = 0;
-            sleep 15;
-            while ( $load != 1 ){
-                $load_status = `adb -s $device->{device} shell getprop sys.boot_completed | tr -d '\r'`;
-                $load = 1 if $load_status ne "";
-                sleep 1;
-            }
         }
     }
+}
+
+sub _kill_start_process {
+    my ( $self, $device ) = @_;
+    
+    my @cmd = `ps aux | grep perl | grep 'start.pl'`;
+    my $pid;
+    
+    foreach my $ps ( @cmd ){
+        $ps =~ s/\n//;
+        my @pids;
+        if ( $ps =~ /\.\/rc\.d\/start.pl $device->{id}/ ) {
+            @pids = split(/\s{1,}/, $ps);
+            $pid = $pids[1];
+        }
+    }
+    
+    `kill -9 $pid`;
+    warn "Process $pid killed Device $device->{device}";
+
 }
 
 sub _log_event {

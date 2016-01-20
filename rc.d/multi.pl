@@ -28,7 +28,6 @@ while (1) {
 
     foreach my $device ( @{$devices} ){
         my $proc = `ps aux | grep perl | grep 'start.pl $device->{id}'`;
-
         unless ( $proc =~ /rc.d/gs ){
 	    warn 'Start device '.$device->{device};
             $cmd .= "perl ./rc.d/start.pl $device->{id} &";
@@ -36,6 +35,7 @@ while (1) {
 	    warn 'Device '.$device->{device}.' work';
 	}
     }
+    #print Dumper $devices;
     `$cmd`;
     sleep 10;
 }
